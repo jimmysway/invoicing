@@ -24,6 +24,11 @@ PREPAY_START_DATE_FIELD = "Start Date"
 PREPAY_END_DATE_FIELD = "End Date"
 ###
 
+### Nonbillable projects file fields
+NONBILLABLE_PROJECT_NAME = "Project Name"
+NONBILLABLE_CLUSTER_NAME = "Cluster"
+NONBILLABLE_IS_TIMED = "Timed"
+
 ### Invoice field names
 INVOICE_DATE_FIELD = "Invoice Month"
 PROJECT_FIELD = "Project - Allocation"

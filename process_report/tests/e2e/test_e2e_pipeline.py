@@ -125,10 +125,7 @@ def _prepare_pipeline_execution(
     env["PREPAY_PROJECTS_FILEPATH"] = str(test_files["test_prepay_projects.csv"])
     env["PREPAY_CONTACTS_FILEPATH"] = str(test_files["test_prepay_contacts.csv"])
     env["nonbillable_pis_filepath"] = str(test_files["test_pi.txt"])
-    env["nonbillable_projects_filepath"] = str(test_files["test_projects.txt"])
-    env["nonbillable_timed_projects_filepath"] = str(
-        test_files["test_timed_projects.txt"]
-    )
+    env["nonbillable_projects_filepath"] = str(test_files["test_projects.yaml"])
 
     # Fallback ensures test works even when CI environment doesn't set Chrome path
     env.setdefault("CHROME_BIN_PATH", "/usr/bin/chromium")

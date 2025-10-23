@@ -1,12 +1,14 @@
 from decimal import Decimal
 import functools
 import os
+import yaml
 
 import pandas
 from nerc_rates import load_from_url
 
 from process_report import util
 from process_report.settings import invoice_settings
+from process_report.invoices import invoice
 
 # List of service invoices processed by pipeline. Change if new services are added.
 S3_SERVICE_INVOICE_LIST = [
@@ -112,32 +114,68 @@ class Loader:
         with open(invoice_settings.nonbillable_pis_filepath) as file:
             return [line.rstrip() for line in file]
 
-    def get_nonbillable_projects(self) -> list[str]:
-        """Returns list of nonbillable projects for current invoice month"""
+    @functools.lru_cache
+    def get_nonbillable_projects(self) -> pandas.DataFrame:
+        """
+        Returns dataframe of nonbillable projects for current invoice month
+        The dataframe has 3 columns: Project Name, Cluster, Is Timed
+        1. Project Name: Name of the nonbillable project
+        2. Cluster: Name of the cluster for which the project is nonbillable, or None meaning all clusters
+        3. Is Timed: Boolean indicating if the nonbillable status is time-bound
+        """
+
+        def _check_time_range(timed_object) -> bool:
+            # Leveraging inherent lexicographical order of YYYY-MM strings
+            return (
+                timed_object["start"] <= invoice_settings.invoice_month
+                and invoice_settings.invoice_month < timed_object["end"]
+            )
+
+        project_list = []
         with open(invoice_settings.nonbillable_projects_filepath) as file:
-            projects = [line.rstrip() for line in file]
+            projects_dict = yaml.safe_load(file)
 
-        timed_projects_list = self.get_nonbillable_timed_projects()
-        return list(set(projects + timed_projects_list))
+        for project in projects_dict:
+            project_name = project["name"]
+            cluster_list = project.get("clusters")
 
-    def get_nonbillable_timed_projects(self) -> list[str]:
+            if project.get("start"):
+                if not _check_time_range(project):
+                    continue
+
+                if cluster_list:
+                    for cluster in cluster_list:
+                        project_list.append((project_name, cluster["name"], True))
+                else:
+                    project_list.append((project_name, None, True))
+            elif cluster_list:
+                for cluster in cluster_list:
+                    cluster_start_time = cluster.get("start")
+                    if cluster_start_time:
+                        if _check_time_range(cluster):
+                            project_list.append((project_name, cluster["name"], True))
+                    elif not cluster_start_time:
+                        project_list.append((project_name, cluster["name"], False))
+            else:
+                project_list.append((project_name, None, False))
+
+        return pandas.DataFrame(
+            project_list,
+            columns=[
+                invoice.NONBILLABLE_PROJECT_NAME,
+                invoice.NONBILLABLE_CLUSTER_NAME,
+                invoice.NONBILLABLE_IS_TIMED,
+            ],
+        )
+
+    def get_nonbillable_timed_projects(self) -> list[tuple[str, str]]:
         """Returns list of projects that should be excluded based on dates"""
-        dataframe = pandas.read_csv(
-            invoice_settings.nonbillable_timed_projects_filepath
+        nonbilable_projects = self.get_nonbillable_projects()
+        return list(
+            nonbilable_projects[nonbilable_projects[invoice.NONBILLABLE_IS_TIMED]][
+                [invoice.NONBILLABLE_PROJECT_NAME, invoice.NONBILLABLE_CLUSTER_NAME]
+            ].itertuples(index=False, name=None)
         )
-
-        # convert to pandas timestamp objects
-        dataframe["Start Date"] = pandas.to_datetime(
-            dataframe["Start Date"], format="%Y-%m"
-        )
-        dataframe["End Date"] = pandas.to_datetime(
-            dataframe["End Date"], format="%Y-%m"
-        )
-
-        mask = (dataframe["Start Date"] <= invoice_settings.invoice_month) & (
-            invoice_settings.invoice_month <= dataframe["End Date"]
-        )
-        return dataframe[mask]["Project"].to_list()
 
 
 loader = Loader()

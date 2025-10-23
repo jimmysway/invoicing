@@ -9,14 +9,42 @@ from process_report.tests import util as test_utils
 class TestValidateBillablePIProcessor(TestCase):
     def test_remove_nonbillables(self):
         pis = [uuid.uuid4().hex for _ in range(10)]
-        projects = [uuid.uuid4().hex for _ in range(10)]
-        cluster_names = [uuid.uuid4().hex for _ in range(10)]
-        cluster_names[6:8] = ["ocp-test"] * 2  # Test that ocp-test is not billable
-        nonbillable_pis = pis[:3]
-        nonbillable_projects = [
-            project.upper() for project in projects[7:]
-        ]  # Test for case-insentivity
-        billable_pis = pis[3:6]
+        projects = [
+            "P1",
+            "P2",
+            "P1",  # P1 is duplicated to test multiple projects with same name
+            "P3",
+            "P4",
+            "P5",
+            "P6",
+            "P7",
+            "P8",
+            "P9",
+        ]
+        cluster_names = [
+            "stack",
+            "stack",
+            "ocp-prod",
+            "ocp-prod",
+            "ocp-prod",
+            "ocp-prod",
+            "ocp-test",  # ocp-test is nonbillable
+            "ocp-test",
+            "bm",
+            "bm",
+        ]
+        nonbillable_pis = [pis[1]]  # P2 (of second PI) is nonbillable
+        nonbillable_projects = pandas.DataFrame(
+            {
+                "Project Name": ["p1", "p8", "p9"],  # Testing case insensitivity
+                "Cluster": [
+                    None,
+                    "bm",
+                    "ocp-prod",
+                ],  # P1 is cluster-agnostic, P8-bm should be nonbillable, P9 should be billable because its on bm cluster in test invoice
+                "Is Timed": [False, False, False],
+            }
+        )
 
         data = pandas.DataFrame(
             {
@@ -32,12 +60,8 @@ class TestValidateBillablePIProcessor(TestCase):
             nonbillable_projects=nonbillable_projects,
         )
         validate_billable_pi_proc.process()
-        data = validate_billable_pi_proc.data
-        data = data[data["Is Billable"]]
-        assert data[data["Manager (PI)"].isin(nonbillable_pis)].empty
-        assert data[data["Project - Allocation"].isin(nonbillable_projects)].empty
-        assert data[data["Cluster Name"] == "ocp-test"].empty
-        assert data["Manager (PI)"].tolist() == billable_pis
+        output = validate_billable_pi_proc.data
+        assert output[output["Is Billable"]].equals(data.iloc[[3, 4, 5, 9]])
 
     def test_empty_pi_name(self):
         test_data = pandas.DataFrame(

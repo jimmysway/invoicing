@@ -25,8 +25,7 @@ class Settings(BaseSettings):
 
     # Local input files
     nonbillable_pis_filepath: str = "pi.txt"
-    nonbillable_projects_filepath: str = "projects.txt"
-    nonbillable_timed_projects_filepath: str = "timed_projects.txt"
+    nonbillable_projects_filepath: str = "projects.yaml"
     prepay_projects_filepath: str = "prepaid_projects.csv"
     prepay_credits_filepath: str = "prepaid_credits.csv"
     prepay_contacts_filepath: str = "prepaid_contacts.csv"
