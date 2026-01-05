@@ -8,6 +8,15 @@ from nerc_rates import load_from_url
 from process_report import util
 from process_report.settings import invoice_settings
 
+# List of service invoices processed by pipeline. Change if new services are added.
+S3_SERVICE_INVOICE_LIST = [
+    "ocp-test {invoice_month}.csv",
+    "ocp-prod {invoice_month}.csv",
+    "academic {invoice_month}.csv",
+    "NERC OpenStack {invoice_month}.csv",
+    "NERC Storage {invoice_month}.csv",
+]
+
 
 @functools.lru_cache
 def get_rates_info():
@@ -22,14 +31,15 @@ class Loader:
         if invoice_settings.fetch_from_s3:
             s3_bucket = util.get_invoice_bucket()
 
-            for obj in s3_bucket.objects.filter(
-                Prefix=invoice_settings.invoice_path_template.format(
+            for invoice_name_template in S3_SERVICE_INVOICE_LIST:
+                local_name = invoice_name_template.format(
                     invoice_month=invoice_settings.invoice_month
                 )
-            ):
-                local_name = obj.key.split("/")[-1]
+                s3_name = (invoice_settings.invoice_path_template + local_name).format(
+                    invoice_month=invoice_settings.invoice_month
+                )
                 csv_invoice_filepath_list.append(local_name)
-                s3_bucket.download_file(obj.key, local_name)
+                s3_bucket.download_file(s3_name, local_name)
         else:
             invoice_dir_path = invoice_settings.invoice_path_template.format(
                 invoice_month=invoice_settings.invoice_month
