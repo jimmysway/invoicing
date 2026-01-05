@@ -83,7 +83,7 @@ class TestTimedProjects(TestCase):
             {
                 "name": "ProjectD",
                 "clusters": [
-                    {"name": "Cluster1", "start": "2023-05", "end": "2023-11"},
+                    {"name": "Cluster1", "start": "2023-05", "end": "2023-09"},
                     {"name": "Cluster2", "start": "2023-05", "end": "2023-11"},
                 ],
             },

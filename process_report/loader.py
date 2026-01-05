@@ -124,11 +124,11 @@ class Loader:
         3. Is Timed: Boolean indicating if the nonbillable status is time-bound
         """
 
-        def _check_time_range(timed_object) -> bool:
+        def _is_in_time_range(timed_object) -> bool:
             # Leveraging inherent lexicographical order of YYYY-MM strings
             return (
                 timed_object["start"] <= invoice_settings.invoice_month
-                and invoice_settings.invoice_month < timed_object["end"]
+                and invoice_settings.invoice_month <= timed_object["end"]
             )
 
         project_list = []
@@ -140,7 +140,7 @@ class Loader:
             cluster_list = project.get("clusters")
 
             if project.get("start"):
-                if not _check_time_range(project):
+                if not _is_in_time_range(project):
                     continue
 
                 if cluster_list:
@@ -152,7 +152,7 @@ class Loader:
                 for cluster in cluster_list:
                     cluster_start_time = cluster.get("start")
                     if cluster_start_time:
-                        if _check_time_range(cluster):
+                        if _is_in_time_range(cluster):
                             project_list.append((project_name, cluster["name"], True))
                     elif not cluster_start_time:
                         project_list.append((project_name, cluster["name"], False))

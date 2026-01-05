@@ -62,12 +62,17 @@ class ColdfrontFetchProcessor(processor.Processor):
         session.headers.update(headers)
         return session
 
-    def _get_project_name_list(self) -> list[str]:
-        """Returns list of billable project IDs"""
+    def _get_billable_projects_clusters(self) -> set[str]:
+        """Returns set of billable project and cluster name tuples."""
         project_mask = validate_billable_pi_processor.find_billable_projects(
             self.data, self.nonbillable_projects
         )
-        return self.data[project_mask][invoice.PROJECT_FIELD].unique().tolist()
+
+        return set(
+            self.data[project_mask][
+                [invoice.PROJECT_FIELD, invoice.CLUSTER_NAME_FIELD]
+            ].itertuples(index=False, name=None)
+        )
 
     def _fetch_coldfront_allocation_api(self):
         coldfront_api_url = os.environ.get(
@@ -109,6 +114,7 @@ class ColdfrontFetchProcessor(processor.Processor):
                     invoice.PROJECT_FIELD: project_name,
                     invoice.PI_FIELD: pi_name,
                     invoice.INSTITUTION_ID_FIELD: institute_code,
+                    invoice.CLUSTER_NAME_FIELD: cluster_name,
                 }
             except KeyError:
                 continue
@@ -117,9 +123,12 @@ class ColdfrontFetchProcessor(processor.Processor):
 
     def _validate_allocation_data(self, allocation_data):
         allocation_project_names = {
-            data[invoice.PROJECT_FIELD] for data in allocation_data.values()
+            (data[invoice.PROJECT_FIELD], data[invoice.CLUSTER_NAME_FIELD])
+            for data in allocation_data.values()
         }
-        missing_projects = set(self._get_project_name_list()) - allocation_project_names
+        missing_projects = (
+            set(self._get_billable_projects_clusters()) - allocation_project_names
+        )
         missing_projects = list(missing_projects)
         missing_projects.sort()  # Ensures order for testing purposes
         if missing_projects:

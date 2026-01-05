@@ -104,7 +104,7 @@ class TestColdfrontFetchProcessor(TestCase):
         test_invoice = self._get_test_invoice(
             ["P1", "P2", "P3", "P4", "P5"], cluster_name=["stack"] * 5
         )
-        answer_project_set = ["P4", "P5"]
+        answer_project_set = [("P4", "stack"), ("P5", "stack")]
         test_coldfront_fetch_proc = test_utils.new_coldfront_fetch_processor(
             data=test_invoice, nonbillable_projects=test_nonbillable_projects
         )
@@ -112,7 +112,6 @@ class TestColdfrontFetchProcessor(TestCase):
         with pytest.raises(ValueError) as cm:
             test_coldfront_fetch_proc.process()
 
-        print(cm.value)
         assert str(cm.value) == (
             f"Projects {answer_project_set} not found in Coldfront and are billable! Please check the project names"
         )
@@ -146,3 +145,33 @@ class TestColdfrontFetchProcessor(TestCase):
         test_coldfront_fetch_proc.process()
         output_invoice = test_coldfront_fetch_proc.data
         assert output_invoice.equals(answer_invoice)
+
+    @mock.patch(
+        "process_report.processors.coldfront_fetch_processor.ColdfrontFetchProcessor._fetch_coldfront_allocation_api",
+    )
+    def test_missing_project_cluster_tuples(self, mock_get_allocation_data):
+        # API returns allocations for P1@clusterA and P2@clusterA only
+        mock_get_allocation_data.return_value = self._get_mock_allocation_data(
+            ["P1", "P2"],
+            ["PI1", "PI2"],
+            ["IC1", "IC2"],
+            ["clusterA", "clusterA"],
+        )
+
+        # Invoice contains two rows for P1 on different clusters, plus P2 and P4
+        test_invoice = self._get_test_invoice(
+            allocation_project_id=["P1", "P1", "P2", "P4"],
+            cluster_name=["clusterA", "clusterB", "clusterA", "clusterA"],
+        )
+
+        test_coldfront_fetch_proc = test_utils.new_coldfront_fetch_processor(
+            data=test_invoice
+        )
+
+        with pytest.raises(ValueError) as cm:
+            test_coldfront_fetch_proc.process()
+
+        expected_missing = [("P1", "clusterB"), ("P4", "clusterA")]
+        assert str(cm.value) == (
+            f"Projects {expected_missing} not found in Coldfront and are billable! Please check the project names"
+        )
