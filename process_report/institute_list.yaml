@@ -116,3 +116,23 @@
 -   display_name: Vertra Labs
     domains:
     - vertexconcepts.tech
+-   display_name: University of Illinois
+    domains:
+    - illinois.edu
+-   display_name: University of Chicago
+    domains:
+    - @uchicago.edu
+-   display_name: Rensselaer Polytechnic Institute
+    domains:
+    - @rpi.edu
+-   display_name: University of Georgia
+    domains:
+    - @uga.edu
+-   display_name: International Business Machines
+    domains:
+    - @us.ibm.com
+    - @ibm.com
+    - @cn.ibm.com
+    - @europess.ibm.com
+    - @apss.ibm.com
+    - @japanss.ibm.com
