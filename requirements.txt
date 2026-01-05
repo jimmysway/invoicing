@@ -1,7 +1,7 @@
 git+https://github.com/CCI-MOC/nerc-rates@33701ed#egg=nerc_rates
 pandas
 pyarrow
-boto3
+boto3>=1.42.6,<2.0
 Jinja2
 validators
 python-dateutil
