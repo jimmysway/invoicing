@@ -121,18 +121,18 @@
     - illinois.edu
 -   display_name: University of Chicago
     domains:
-    - @uchicago.edu
+    - uchicago.edu
 -   display_name: Rensselaer Polytechnic Institute
     domains:
-    - @rpi.edu
+    - rpi.edu
 -   display_name: University of Georgia
     domains:
-    - @uga.edu
+    - uga.edu
 -   display_name: International Business Machines
     domains:
-    - @us.ibm.com
-    - @ibm.com
-    - @cn.ibm.com
-    - @europess.ibm.com
-    - @apss.ibm.com
-    - @japanss.ibm.com
+    - us.ibm.com
+    - ibm.com
+    - cn.ibm.com
+    - europess.ibm.com
+    - apss.ibm.com
+    - japanss.ibm.com
