@@ -50,7 +50,9 @@ class NewPICreditProcessor(discount_processor.DiscountProcessor):
         try:
             old_pi_df = pandas.read_csv(
                 old_pi_filepath,
-                dtype={
+            )
+            old_pi_df = old_pi_df.astype(
+                {
                     invoice.PI_INITIAL_CREDITS: pandas.ArrowDtype(
                         pyarrow.decimal128(21, 2)
                     ),

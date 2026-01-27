@@ -105,10 +105,12 @@ def merge_csv(files):
     for file in files:
         dataframe = pandas.read_csv(
             file,
-            dtype={
-                invoice.COST_FIELD: pandas.ArrowDtype(pyarrow.decimal128(12, 2)),
+        )
+        dataframe = dataframe.astype(
+            {
+                invoice.COST_FIELD: pandas.ArrowDtype(pyarrow.decimal128(21, 2)),
                 invoice.RATE_FIELD: str,
-            },
+            }
         )
         dataframes.append(dataframe)
 
