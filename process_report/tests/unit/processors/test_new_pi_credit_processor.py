@@ -1,4 +1,5 @@
 from unittest import TestCase, mock
+from decimal import Decimal
 import pandas
 import pytest
 
@@ -85,7 +86,7 @@ class TestNewPICreditProcessor(BaseTestCaseWithTempDir):
         assert output_old_pi_df.equals(answer_old_pi_df)
 
     def _get_test_invoice(
-        self, pi, cost, su_type=None, is_billable=None, missing_pi=None
+        self, pi, costs, su_type=None, is_billable=None, missing_pi=None
     ):
         if not su_type:
             su_type = ["CPU" for _ in range(len(pi))]
@@ -99,7 +100,7 @@ class TestNewPICreditProcessor(BaseTestCaseWithTempDir):
         return pandas.DataFrame(
             {
                 "Manager (PI)": pi,
-                "Cost": cost,
+                "Cost": [Decimal(cost) for cost in costs],
                 "SU Type": su_type,
                 "Is Billable": is_billable,
                 "Missing PI": missing_pi,
@@ -119,6 +120,8 @@ class TestNewPICreditProcessor(BaseTestCaseWithTempDir):
                 "PI": ["PI"],
                 "First Invoice Month": ["2024-01"],
                 "Initial Credits": [1000],
+                "1st Month Used": [None],
+                "2nd Month Used": [None],
             }
         )
         test_old_pi_df.to_csv(test_old_pi_file, index=False)

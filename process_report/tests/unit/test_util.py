@@ -26,7 +26,7 @@ class TestMonthUtils(TestCase):
 
 class TestMergeCSV(TestCase):
     def setUp(self):
-        self.header = ["ID", "Name", "Age"]
+        self.header = ["Cost", "Name", "Rate"]
         self.data = [
             [1, "Alice", 25],
             [2, "Bob", 30],
