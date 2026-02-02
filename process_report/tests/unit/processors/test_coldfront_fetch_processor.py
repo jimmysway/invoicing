@@ -21,7 +21,7 @@ class TestColdfrontFetchProcessor(TestCase):
             institute_code = [""] * len(allocation_project_id)
 
         if not allocation_project_name:
-            allocation_project_name = [""] * len(allocation_project_id)
+            allocation_project_name = allocation_project_id
 
         if not cluster_name:
             cluster_name = [""] * len(allocation_project_id)
@@ -36,11 +36,16 @@ class TestColdfrontFetchProcessor(TestCase):
             }
         )
 
-    def _get_mock_allocation_data(self, project_id_list, pi_list, institute_code_list):
+    def _get_mock_allocation_data(
+        self, project_id_list, pi_list, institute_code_list, cluster_list
+    ):
         mock_data = []
         for i, project in enumerate(project_id_list):
             mock_data.append(
                 {
+                    "resource": {
+                        "name": cluster_list[i],
+                    },
                     "project": {
                         "pi": pi_list[i],
                     },
@@ -62,13 +67,17 @@ class TestColdfrontFetchProcessor(TestCase):
             ["P1", "P2", "P3", "P4"],
             ["PI1", "PI1", "", "PI12"],
             ["IC1", "", "", "IC2"],
+            ["stack"] * 4,
         )
-        test_invoice = self._get_test_invoice(["P1", "P1", "P2", "P3", "P4"])
+        test_invoice = self._get_test_invoice(
+            ["P1", "P1", "P2", "P3", "P4"], cluster_name=["stack"] * 5
+        )
         answer_invoice = self._get_test_invoice(
             ["P1", "P1", "P2", "P3", "P4"],
             ["P1-name", "P1-name", "P2-name", "P3-name", "P4-name"],
             ["PI1", "PI1", "PI1", "", "PI12"],
             ["IC1", "IC1", "", "", "IC2"],
+            ["stack"] * 5,
         )
         test_coldfront_fetch_proc = test_utils.new_coldfront_fetch_processor(
             data=test_invoice
@@ -83,13 +92,19 @@ class TestColdfrontFetchProcessor(TestCase):
     def test_coldfront_project_not_found(self, mock_get_allocation_data):
         """What happens when an invoice project is not found in Coldfront."""
         mock_get_allocation_data.return_value = self._get_mock_allocation_data(
-            ["P1", "P2"],
-            ["PI1", "PI1"],
-            ["IC1", "IC2"],
+            ["P1", "P2"], ["PI1", "PI1"], ["IC1", "IC2"], ["stack"] * 2
         )
-        test_nonbillable_projects = ["P3"]
-        test_invoice = self._get_test_invoice(["P1", "P2", "P3", "P4", "P5"])
-        answer_project_set = ["P4", "P5"]
+        test_nonbillable_projects = pandas.DataFrame(
+            {
+                "Project Name": ["P3"],
+                "Cluster": [None],
+                "Is Timed": [False],
+            }
+        )
+        test_invoice = self._get_test_invoice(
+            ["P1", "P2", "P3", "P4", "P5"], cluster_name=["stack"] * 5
+        )
+        answer_project_set = [("P4", "stack"), ("P5", "stack")]
         test_coldfront_fetch_proc = test_utils.new_coldfront_fetch_processor(
             data=test_invoice, nonbillable_projects=test_nonbillable_projects
         )
@@ -111,14 +126,15 @@ class TestColdfrontFetchProcessor(TestCase):
             ["P1", "P2"],
             ["PI1", "PI1"],
             ["IC1", "IC2"],
+            ["ocp-prod", "stack"],
         )
         test_invoice = self._get_test_invoice(
-            ["P1", "P2", "P3", "P4"],
+            allocation_project_id=["P1", "P2", "P3", "P4"],
             cluster_name=["ocp-prod", "stack", "ocp-test", "ocp-test"],
         )
         answer_invoice = self._get_test_invoice(
             ["P1", "P2", "P3", "P4"],
-            ["P1-name", "P2-name", "", ""],
+            ["P1-name", "P2-name", "P3", "P4"],
             ["PI1", "PI1", "", ""],
             ["IC1", "IC2", "", ""],
             ["ocp-prod", "stack", "ocp-test", "ocp-test"],
@@ -129,3 +145,33 @@ class TestColdfrontFetchProcessor(TestCase):
         test_coldfront_fetch_proc.process()
         output_invoice = test_coldfront_fetch_proc.data
         assert output_invoice.equals(answer_invoice)
+
+    @mock.patch(
+        "process_report.processors.coldfront_fetch_processor.ColdfrontFetchProcessor._fetch_coldfront_allocation_api",
+    )
+    def test_missing_project_cluster_tuples(self, mock_get_allocation_data):
+        # API returns allocations for P1@clusterA and P2@clusterA only
+        mock_get_allocation_data.return_value = self._get_mock_allocation_data(
+            ["P1", "P2"],
+            ["PI1", "PI2"],
+            ["IC1", "IC2"],
+            ["clusterA", "clusterA"],
+        )
+
+        # Invoice contains two rows for P1 on different clusters, plus P2 and P4
+        test_invoice = self._get_test_invoice(
+            allocation_project_id=["P1", "P1", "P2", "P4"],
+            cluster_name=["clusterA", "clusterB", "clusterA", "clusterA"],
+        )
+
+        test_coldfront_fetch_proc = test_utils.new_coldfront_fetch_processor(
+            data=test_invoice
+        )
+
+        with pytest.raises(ValueError) as cm:
+            test_coldfront_fetch_proc.process()
+
+        expected_missing = [("P1", "clusterB"), ("P4", "clusterA")]
+        assert str(cm.value) == (
+            f"Projects {expected_missing} not found in Coldfront and are billable! Please check the project names"
+        )

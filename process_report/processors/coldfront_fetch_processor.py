@@ -6,11 +6,16 @@ import json
 from dataclasses import dataclass, field
 
 import requests
+import pandas
 
 from process_report.loader import loader
 from process_report.settings import invoice_settings
 from process_report.invoices import invoice
-from process_report.processors import processor, validate_billable_pi_processor
+from process_report.processors import (
+    processor,
+    validate_billable_pi_processor,
+    validate_cluster_name_processor,
+)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +28,7 @@ CF_ATTR_INSTITUTION_SPECIFIC_CODE = "Institution-Specific Code"
 
 @dataclass
 class ColdfrontFetchProcessor(processor.Processor):
-    nonbillable_projects: list[str] = field(
+    nonbillable_projects: pandas.DataFrame = field(
         default_factory=loader.get_nonbillable_projects
     )
     coldfront_data_filepath: str = invoice_settings.coldfront_api_filepath
@@ -57,12 +62,17 @@ class ColdfrontFetchProcessor(processor.Processor):
         session.headers.update(headers)
         return session
 
-    def _get_project_id_list(self):
-        """Returns list of project IDs from billable clusters"""
-        nonbillable_cluster_mask = ~self.data[invoice.CLUSTER_NAME_FIELD].isin(
-            validate_billable_pi_processor.NONBILLABLE_CLUSTERS
+    def _get_billable_projects_clusters(self) -> set[str]:
+        """Returns set of billable project and cluster name tuples."""
+        project_mask = validate_billable_pi_processor.find_billable_projects(
+            self.data, self.nonbillable_projects
         )
-        return self.data[nonbillable_cluster_mask][invoice.PROJECT_ID_FIELD].unique()
+
+        return set(
+            self.data[project_mask][
+                [invoice.PROJECT_FIELD, invoice.CLUSTER_NAME_FIELD]
+            ].itertuples(index=False, name=None)
+        )
 
     def _fetch_coldfront_allocation_api(self):
         coldfront_api_url = os.environ.get(
@@ -83,7 +93,7 @@ class ColdfrontFetchProcessor(processor.Processor):
             return self._fetch_coldfront_allocation_api()
 
     def _get_allocation_data(self, coldfront_api_data):
-        """Returns a mapping of project IDs to a dict of project name, PI name, and institution code."""
+        """Returns a mapping of (project ID, cluster name) tupels to a dict of project name, PI name, and institution code."""
         allocation_data = {}
         for project_dict in coldfront_api_data:
             try:
@@ -96,10 +106,15 @@ class ColdfrontFetchProcessor(processor.Processor):
                 institute_code = project_dict["attributes"].get(
                     CF_ATTR_INSTITUTION_SPECIFIC_CODE, "N/A"
                 )
-                allocation_data[project_id] = {
+                cluster_name = project_dict["resource"]["name"]
+                cluster_name = validate_cluster_name_processor.ValidateClusterNameProcessor.CLUSTER_NAME_MAP.get(
+                    cluster_name, cluster_name
+                )
+                allocation_data[(project_id, cluster_name)] = {
                     invoice.PROJECT_FIELD: project_name,
                     invoice.PI_FIELD: pi_name,
                     invoice.INSTITUTION_ID_FIELD: institute_code,
+                    invoice.CLUSTER_NAME_FIELD: cluster_name,
                 }
             except KeyError:
                 continue
@@ -107,10 +122,12 @@ class ColdfrontFetchProcessor(processor.Processor):
         return allocation_data
 
     def _validate_allocation_data(self, allocation_data):
+        allocation_project_names = {
+            (data[invoice.PROJECT_FIELD], data[invoice.CLUSTER_NAME_FIELD])
+            for data in allocation_data.values()
+        }
         missing_projects = (
-            set(self._get_project_id_list())
-            - set(allocation_data.keys())
-            - set(self.nonbillable_projects)
+            set(self._get_billable_projects_clusters()) - allocation_project_names
         )
         missing_projects = list(missing_projects)
         missing_projects.sort()  # Ensures order for testing purposes
@@ -120,8 +137,11 @@ class ColdfrontFetchProcessor(processor.Processor):
             )
 
     def _apply_allocation_data(self, allocation_data):
-        for project_id, data in allocation_data.items():
-            mask = self.data[invoice.PROJECT_ID_FIELD] == project_id
+        for project_cluster_tuple, data in allocation_data.items():
+            project_id, cluster_name = project_cluster_tuple
+            mask = (self.data[invoice.PROJECT_ID_FIELD] == project_id) & (
+                self.data[invoice.CLUSTER_NAME_FIELD] == cluster_name
+            )
             self.data.loc[mask, invoice.PROJECT_FIELD] = data[invoice.PROJECT_FIELD]
             self.data.loc[mask, invoice.PI_FIELD] = data[invoice.PI_FIELD]
             self.data.loc[mask, invoice.INSTITUTION_ID_FIELD] = data[
@@ -131,5 +151,5 @@ class ColdfrontFetchProcessor(processor.Processor):
     def _process(self):
         api_data = self._get_coldfront_api_data()
         allocation_data = self._get_allocation_data(api_data)
-        self._validate_allocation_data(allocation_data)
         self._apply_allocation_data(allocation_data)
+        self._validate_allocation_data(allocation_data)

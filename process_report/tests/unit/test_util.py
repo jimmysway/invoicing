@@ -2,8 +2,8 @@ from unittest import TestCase, mock
 import tempfile
 import pandas
 import os
-from textwrap import dedent
 import pytest
+import yaml
 
 from process_report.settings import invoice_settings
 from process_report.loader import loader
@@ -64,33 +64,52 @@ class TestMergeCSV(TestCase):
 
 class TestTimedProjects(TestCase):
     def setUp(self):
-        # Without the dedent method, our data will have leading spaces which
-        # messes up the first key. Also the '\' is imporant to ignore the first
-        # new line we added so it's more readable in code.
-        self.csv_data = dedent(
-            """\
-        Project,Start Date,End Date
-        ProjectA,2022-09,2023-08
-        ProjectB,2022-09,2023-09
-        ProjectC,2023-09,2024-08
-        ProjectD,2022-09,2024-08
-        """
-        )
+        self.yaml_data = [
+            {
+                "name": "ProjectA",
+                "clusters": [{"name": "Cluster1"}, {"name": "Cluster2"}],  # Not timed
+            },
+            {
+                "name": "ProjectB",
+                "clusters": [
+                    {"name": "Cluster1", "start": "2023-01", "end": "2023-12"}
+                ],
+            },
+            {
+                "name": "ProjectC",
+                "start": "2023-06",
+                "end": "2023-07",
+            },
+            {
+                "name": "ProjectD",
+                "clusters": [
+                    {"name": "Cluster1", "start": "2023-05", "end": "2023-09"},
+                    {"name": "Cluster2", "start": "2023-05", "end": "2023-11"},
+                ],
+            },
+            {
+                "name": "ProjectE",
+            },
+        ]
 
-        self.csv_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        self.csv_file.write(self.csv_data)
-        self.csv_file.close()
+        self.yaml_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        yaml.dump(self.yaml_data, self.yaml_file)
+        self.yaml_file.close()
 
-        invoice_settings.invoice_month = pandas.Timestamp("2023-09")
-        invoice_settings.nonbillable_timed_projects_filepath = self.csv_file.name
+        invoice_settings.invoice_month = "2023-09"  # This excludes ProjectC
+        invoice_settings.nonbillable_projects_filepath = self.yaml_file.name
 
     def tearDown(self):
-        os.remove(self.csv_file.name)
+        os.remove(self.yaml_file.name)
 
     def test_timed_projects(self):
         excluded_projects = loader.get_nonbillable_timed_projects()
 
-        expected_projects = ["ProjectB", "ProjectC", "ProjectD"]
+        expected_projects = [
+            ("ProjectB", "Cluster1"),
+            ("ProjectD", "Cluster1"),
+            ("ProjectD", "Cluster2"),
+        ]
         assert excluded_projects == expected_projects
 
 

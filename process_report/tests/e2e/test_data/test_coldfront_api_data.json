@@ -4,6 +4,9 @@
         "project": {
             "pi": "pi1@bu.edu"
         },
+        "resource": {
+            "name": "shift"
+        },
         "attributes": {
             "Allocated Project Name": "P1",
             "Allocated Project ID": "P1ID"
@@ -14,6 +17,9 @@
         "project": {
             "pi": "pi1@bu.edu"
         },
+        "resource": {
+            "name": "shift"
+        },
         "attributes": {
             "Allocated Project Name": "P2",
             "Allocated Project ID": "P2ID"
@@ -23,6 +29,9 @@
         "id": 1,
         "project": {
             "pi": "pi2@harvard.edu"
+        },
+        "resource": {
+            "name": "shift"
         },
         "attributes": {
             "Allocated Project Name": "P3",
