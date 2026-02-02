@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-NONBILLABLE_CLUSTERS = ["ocp-test"]
+NONBILLABLE_CLUSTERS = ["ocp-test", "barcelona"]
 
 
 def find_billable_projects(
@@ -84,9 +84,11 @@ def find_billable_projects(
 class ValidateBillablePIsProcessor(processor.Processor):
     """
     This processor validates the billable PIs and projects in the data,
-    and determines if a project is billable or not.
+    and determines if a project is billable or not using several criterias:
 
-    Every project belonging to ocp-test is nonbillable.
+    - The PI is nonbillable
+    - The project (identified by project name) is nonbillable
+    - The project belongs in `NONBILLABLE_CLUSTERS`
     """
 
     nonbillable_pis: list[str] = field(default_factory=loader.get_nonbillable_pis)
