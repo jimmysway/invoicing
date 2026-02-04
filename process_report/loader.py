@@ -11,10 +11,12 @@ from process_report.settings import invoice_settings
 from process_report.invoices import invoice
 
 # List of service invoices processed by pipeline. Change if new services are added.
+# Cannot simply filter by suffix because S3 can't do it
 S3_SERVICE_INVOICE_LIST = [
     "ocp-test {invoice_month}.csv",
     "ocp-prod {invoice_month}.csv",
     "academic {invoice_month}.csv",
+    "barcelona {invoice_month}.csv",
     "NERC OpenStack {invoice_month}.csv",
     "NERC Storage {invoice_month}.csv",
 ]
