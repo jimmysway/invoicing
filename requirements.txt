@@ -6,3 +6,4 @@ Jinja2
 validators
 python-dateutil
 pydantic-settings
+pyiceberg[pyarrow]

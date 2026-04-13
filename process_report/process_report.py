@@ -18,6 +18,7 @@ from process_report.invoices import (
     MOCA_prepaid_invoice,
     prepay_credits_snapshot,
     ocp_test_invoice,
+    iceberg_invoice,
 )
 from process_report.processors import (
     coldfront_fetch_processor,
@@ -97,6 +98,7 @@ def main():
             MOCA_prepaid_invoice.MOCAPrepaidInvoice,
             prepay_credits_snapshot.PrepayCreditsSnapshot,
             ocp_test_invoice.OcpTestInvoice,
+            iceberg_invoice.IcebergInvoice,
         ],
         invoice_settings.upload_to_s3,
     )

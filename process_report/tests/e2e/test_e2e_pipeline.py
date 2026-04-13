@@ -5,6 +5,9 @@ import pytest
 import logging
 import subprocess
 from typing import Dict, List
+import yaml
+
+from pyiceberg import schema, catalog
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +133,28 @@ def _prepare_pipeline_execution(
     # Fallback ensures test works even when CI environment doesn't set Chrome path
     env.setdefault("CHROME_BIN_PATH", "/usr/bin/chromium")
     env["PYTHONPATH"] = str(project_root) + ":" + env.get("PYTHONPATH", "")
+
+    # Iceberg settings, init test namespace and table
+    env["iceberg_catalog_name"] = "test_catalog"
+    env["iceberg_config_path"] = workspace / "test_iceberg_config.yaml"
+    env["iceberg_table_path"] = "test_namespace.test_table"
+
+    catalog_config = {
+        "type": "sql",
+        "warehouse": f"file://{workspace}",
+        "uri": f"sqlite:///{workspace / 'test_iceberg_catalog.db'}",
+    }
+
+    with open(workspace / "test_iceberg_config.yaml", "w") as f:
+        yaml.dump(catalog_config, f)
+
+    test_catalog = catalog.load_catalog(name="test_catalog", **catalog_config)
+    test_schema = schema.Schema(
+        schema.NestedField(1, "Invoice Month", schema.StringType()),
+    )
+
+    test_catalog.create_namespace_if_not_exists("test_namespace")
+    test_catalog.create_table_if_not_exists("test_namespace.test_table", test_schema)
 
     return command, env
 

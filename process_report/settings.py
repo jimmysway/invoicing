@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     keycloak_client_id: str | None = None
     keycloak_client_secret: str | None = None
 
+    # Iceberg config
+    iceberg_catalog_name: str | None = None
+    iceberg_config_path: str | None = None
+    iceberg_table_path: str | None = None
+
     invoice_path_template: str = "Invoices/{invoice_month}/Service Invoices/"
     invoice_month: str = (datetime.datetime.today() - relativedelta(months=1)).strftime(
         "%Y-%m"

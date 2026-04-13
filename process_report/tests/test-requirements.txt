@@ -1,2 +1,4 @@
 pytest
+pytest-env
 coverage
+pyiceberg[sql-sqlite]

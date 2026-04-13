@@ -55,8 +55,10 @@ class BaseTestCase(TestCase):
 
 
 class BaseTestCaseWithTempDir(BaseTestCase):
-    def setUp(self):
-        self.tempdir = Path(tempfile.TemporaryDirectory(delete=False).name)
+    @classmethod
+    def setUpClass(cls):
+        cls.tempdir = Path(tempfile.TemporaryDirectory(delete=False).name)
 
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tempdir)
